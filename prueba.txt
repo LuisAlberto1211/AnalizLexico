@@ -1,7 +1,7 @@
 _si
 -a _sino
+_mientras
 1234
-:=
 > >= < <= = ><
 . , ( ) [ ]
 ¡Hola!
@@ -13,3 +13,6 @@ _si
 5.
 + - * /
 -bs312
+_finmientras
+:=
+:=
