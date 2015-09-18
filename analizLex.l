@@ -1,6 +1,7 @@
 %{
   #include <stdio.h>
   #include <stdlib.h>
+  #include <string.h>
 
   //Longitud maxima de cada simbolo perteneciente a una tabla de operadores
   #define LONG_MAX_SYM 12
@@ -46,7 +47,7 @@
 
   //Estructura de lista ligada TOKENS
   struct nodoListaExpandible{
-    char *elemento;
+    char elemento[20];
     char clase;
     struct nodoListaExpandible *ptrSig;
   };
@@ -62,48 +63,73 @@
   void insertar( ptrNodoListaExpandible *ptrS, char *elemento, char clase);
   void imprimeLista( ptrNodoListaExpandible ptrActual );
 
+  void lista2ArchivoToken(ptrNodoLista ptrInicial, FILE *fp);
+  void lista2Archivo(ptrNodoListaExpandible ptrInicial, char *titulo, FILE *fp);
+
   int i, j;
   Operadores op = { SIMB_PALRES, SIMB_REL, SIMB_ASIG, SIMB_ARIT, SIMB_ESP};  //Se inicializa las tablas de operadores
 
+  FILE *archSalida;
+  FILE *archErrores;
+
+  char c[16];
+  int contIden = 0;
+  int contCad = 0;
+
   ptrNodoLista ptrInicialTokens = NULL;
-  ptrNodoListaExpandible ptrInicial = NULL;
+  ptrNodoListaExpandible ptrInicialIden = NULL;
+  ptrNodoListaExpandible ptrInicialCad = NULL;
+  ptrNodoListaExpandible ptrInicialConstEnt = NULL;
+  ptrNodoListaExpandible ptrInicialConstReal = NULL;
+  ptrNodoListaExpandible ptrInicialError = NULL;
 
 %}
-palRes     _si|_sino|_finsi|_mientras|_finmientras|_haz|_desde|_hasta|_incremento
+palRes     _corto|_desde|_entero|_finmientras|_finsi|_hasta|_haz|_incremento|_largo|_mientras|_real|_si|_simbolo|_sino
 ident      [a-zA-Z]{1,16}
 opAsig     :=
 opRel      >=?|<=?|><|=
 opArit     [\+\-*\/]
 simbEsp    [\.,\(\)\[\]]
 consCad    \".*\"
-consEnt    (\+?|\-?)[0-9]+
+signo      [\+\-]
+consEnt    {signo}?[0-9]+
 sufijo     E{consEnt}
 consReal   (({consEnt}?(.[0-9]+){sufijo}?)|(({consEnt}\.){sufijo}?))
 comentario ¡.*!
 espacio    [ \n\t]+
-error      ([_:#$%&;{}?¿\\])+
+error      [_:#$%&;{}?¿\\]+
 %%
-{palRes}      printf("Soy palRes %s\n", yytext);      j = buscaElemento(op.palRes, yytext, SIMB_PALRES_NUM); insertarToken(&ptrInicialTokens, 0, j);
-{ident}       printf("Soy ident %s\n", yytext);
-{opAsig}      printf("Soy opAsig %s\n", yytext);      j = buscaElemento(op.opAsig, yytext, SIMB_ASIG_NUM); insertarToken(&ptrInicialTokens, 2, j);
-{opRel}       printf("Soy opRel %s\n", yytext);       j = buscaElemento(op.opRel, yytext, SIMB_REL_NUM); insertarToken(&ptrInicialTokens, 3, j);
-{opArit}      printf("Soy opArit %s\n", yytext);      j = buscaElemento(op.opArit, yytext, SIMB_ARIT_NUM); insertarToken(&ptrInicialTokens, 4, j);
-{simbEsp}     printf("Soy simbEsp %s\n", yytext);     j = buscaElemento(op.simbEsp, yytext, SIMB_ESP_NUM); insertarToken(&ptrInicialTokens, 5, j);
-{consCad}     printf("Soy consCad %s\n", yytext);
-{consEnt}     printf("Soy constEnt %s\n", yytext);
-{sufijo}      printf("Soy sufijo %s\n", yytext);
-{consReal}    printf("Soy consReal %s\n", yytext);
-{comentario}  printf("Soy comentario %s\n", yytext);
-{error}       printf("Soy error %s\n", yytext);
+{palRes}      j = buscaElemento(op.palRes, yytext, SIMB_PALRES_NUM); insertarToken(&ptrInicialTokens, 0, j);
+{ident}       insertar(&ptrInicialIden, yytext, 1); contIden++;
+{opAsig}      j = buscaElemento(op.opAsig, yytext, SIMB_ASIG_NUM); insertarToken(&ptrInicialTokens, 2, j);
+{opRel}       j = buscaElemento(op.opRel, yytext, SIMB_REL_NUM); insertarToken(&ptrInicialTokens, 3, j);
+{opArit}      j = buscaElemento(op.opArit, yytext, SIMB_ARIT_NUM); insertarToken(&ptrInicialTokens, 4, j);
+{simbEsp}     j = buscaElemento(op.simbEsp, yytext, SIMB_ESP_NUM); insertarToken(&ptrInicialTokens, 5, j);
+{consCad}     insertar(&ptrInicialCad,yytext, 6); contCad++;
+{consEnt}     insertar(&ptrInicialConstEnt,yytext, 7);
+{sufijo}
+{consReal}    insertar(&ptrInicialConstReal,yytext, 8);
+{comentario}
+{error}       insertar(&ptrInicialError,yytext, 9);
+{espacio}
 %%
 int main(int argc, char *argv[]){
+  archSalida = fopen("Salida.txt", "w");
+  archErrores = fopen("Errores.txt", "w");
 
   yyin = fopen(argv[1], "r");
   yylex();
   fclose(yyin);
 
-  imprimeListaToken(ptrInicialTokens);
-  imprimeLista(ptrInicial);
+  lista2ArchivoToken(ptrInicialTokens, archSalida);
+  lista2Archivo(ptrInicialIden, "\nIdentificadores", archSalida);
+  lista2Archivo(ptrInicialCad, "Cadenas", archSalida);
+  lista2Archivo(ptrInicialConstEnt, "Constantes enteras", archSalida);
+  lista2Archivo(ptrInicialConstReal, "Constantes reales", archSalida);
+  lista2Archivo(ptrInicialError, "Errores", archSalida);
+
+  fclose(archSalida);
+  fclose(archErrores);
 
   return 0;
 }
@@ -115,6 +141,10 @@ int buscaElemento(const char **arr, char *symb, char tam){
       return i;
   }
   return -1;
+}
+
+char* regresaSimbolo(const char **arr, char posicion){
+    return arr[posicion];
 }
 
 
@@ -153,13 +183,26 @@ void insertarToken( ptrNodoLista *ptrS, char clase, char posicion){
 }
 
 void imprimeListaToken( ptrNodoLista ptrActual ){
+  char *tmp;
+
   if ( ptrActual == NULL) {
     printf("La lista esta vacia\n");
   }
   else{
     printf("\nTokens:\n");
     while(ptrActual != NULL){
-      printf("(%d,%d)\n", (ptrActual->clase), (ptrActual->posicion) );
+      if(ptrActual->clase == 4 || ptrActual->clase == 5){
+        if(ptrActual->clase == 4){
+          tmp = regresaSimbolo(op.opArit, ptrActual->posicion);
+          printf("(%d, %c)\n", (ptrActual->clase), tmp[0] );
+        }
+        else{
+          tmp = regresaSimbolo(op.simbEsp, ptrActual->posicion);
+          printf("(%d, %c)\n", (ptrActual->clase), tmp[0] );
+        }
+      }
+      else
+        printf("(%d, %d)\n", (ptrActual->clase), (ptrActual->posicion) );
       ptrActual = ptrActual->ptrSig;
     }
     printf("NULL\n");
@@ -174,7 +217,7 @@ void insertar( ptrNodoListaExpandible *ptrS, char *elemento, char clase){
   ptrNuevo = malloc(sizeof(NodoListaExpandible));
 
   if( ptrNuevo != NULL ){
-    ptrNuevo->elemento = elemento;
+    strncpy(ptrNuevo->elemento, elemento, strlen(elemento));
     ptrNuevo->clase = clase;
     ptrNuevo->ptrSig = NULL;
 
@@ -199,16 +242,63 @@ void insertar( ptrNodoListaExpandible *ptrS, char *elemento, char clase){
     printf("No se inserto el valor\n");
   }
 }
+
 void imprimeLista( ptrNodoListaExpandible ptrActual ){
+  char pos = 0;
+
   if ( ptrActual == NULL) {
     printf("La lista esta vacia\n");
   }
   else{
-    printf("\nElementos:\n");
     while(ptrActual != NULL){
-      printf("%s, clase: %d\n", (ptrActual->elemento), (ptrActual->clase) );
+      if( ptrActual->clase == 1 || ptrActual->clase == 6){
+          if( ptrActual->clase == 1 )
+            printf("(%d, %s, )\n", pos++, (ptrActual->elemento) );
+          else
+            printf("(%d, %s)\n", pos++, (ptrActual->elemento) );
+      }
+      else
+        printf("(%d, %s)\n", (ptrActual->clase), (ptrActual->elemento) );
       ptrActual = ptrActual->ptrSig;
     }
     printf("NULL\n");
   }
+}
+
+void lista2ArchivoToken(ptrNodoLista ptrInicial, FILE *fp){
+  char *tmp;
+  fprintf(fp, "Tokens de tablas estaticas:\n");
+  while(ptrInicial != NULL){
+    if(ptrInicial->clase == 4 || ptrInicial->clase == 5){
+      if(ptrInicial->clase == 4){
+        tmp = regresaSimbolo(op.opArit, ptrInicial->posicion);
+        fprintf(archSalida, "(%d, %c)\n", (ptrInicial->clase), tmp[0] );
+      }
+      else{
+        tmp = regresaSimbolo(op.simbEsp, ptrInicial->posicion);
+        fprintf(archSalida, "(%d, %c)\n", (ptrInicial->clase), tmp[0] );
+      }
+    }
+    else
+      fprintf(archSalida, "(%d, %d)\n", ptrInicial->clase, ptrInicial->posicion);
+    ptrInicial = ptrInicial->ptrSig;
+  }
+}
+
+void lista2Archivo(ptrNodoListaExpandible ptrActual, char *titulo, FILE *fp){
+  char pos = 0;
+
+  fprintf(fp, "%s\n", titulo);
+  while(ptrActual != NULL){
+    if( ptrActual->clase == 1 || ptrActual->clase == 6 || ptrActual->clase == 9){
+        if( ptrActual->clase == 1 )
+          fprintf(fp, "(%d, %s, )\n", pos++, (ptrActual->elemento) );
+        else
+          fprintf(fp, "(%d, %s)\n", pos++, (ptrActual->elemento) );
+    }
+    else
+      fprintf(archSalida, "(%d, %s)\n", ptrActual->clase, ptrActual->elemento);
+    ptrActual = ptrActual->ptrSig;
+  }
+  fprintf(archSalida, "\n");
 }
