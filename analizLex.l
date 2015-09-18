@@ -1,4 +1,13 @@
 %{
+  /*
+    Garcia Aguilar Ricardo Daniel
+    Ortega Vazquez Luis Alberto
+    Compiladores
+    Profesora: Laura Sandoval Montaño
+    Descripcion:
+      Identificar los diferentes componentes del lenguaje definido en clase
+  */
+
   #include <stdio.h>
   #include <stdlib.h>
   #include <string.h>
@@ -17,10 +26,11 @@
 
   //Simbolos de palabras reservadas
   #define SIMB_PALRES {"_corto", "_desde", "_entero", "_finmientras", "_finsi", "_hasta", "_haz", "_incremento", "_largo", "_mientras", "_real", "_si", "_simbolo", "_sino"}
-  //Simbolos de cada tabla de operador
+  //Simbolos de cada tabla de operadores
   #define SIMB_REL { ">", ">=", "<", "<=", "=", "><" }
   #define SIMB_ASIG { ":=" }
   #define SIMB_ARIT { "+", "-", "*", "/"}
+  //Simbolos especiales
   #define SIMB_ESP {  ",", ".", "(", ")", "[", "]" }
 
   //Funcion encargada de encontrar una palabra (symb) en un arreglo (arr) de tamanio dado (tam)
@@ -63,19 +73,19 @@
   void insertar( ptrNodoListaExpandible *ptrS, char *elemento, char clase);
   void imprimeLista( ptrNodoListaExpandible ptrActual );
 
+  //Funciones que pasan los elementos de la lista a archivos
   void lista2ArchivoToken(ptrNodoLista ptrInicial, FILE *fp);
   void lista2Archivo(ptrNodoListaExpandible ptrInicial, char *titulo, FILE *fp);
 
   int i, j;
   Operadores op = { SIMB_PALRES, SIMB_REL, SIMB_ASIG, SIMB_ARIT, SIMB_ESP};  //Se inicializa las tablas de operadores
 
+  //Archivo de salida
   FILE *archSalida;
-  FILE *archErrores;
 
   char c[16];
-  int contIden = 0;
-  int contCad = 0;
 
+  //Estructuras donde se almacenaran las cadenas una vez identificadas
   ptrNodoLista ptrInicialTokens = NULL;
   ptrNodoListaExpandible ptrInicialIden = NULL;
   ptrNodoListaExpandible ptrInicialCad = NULL;
@@ -94,18 +104,18 @@ consCad    \".*\"
 signo      [\+\-]
 consEnt    {signo}?[0-9]+
 sufijo     E{consEnt}
-consReal   (({consEnt}?(.[0-9]+){sufijo}?)|(({consEnt}\.){sufijo}?))
+consReal   ({consEnt}?\.[0-9]+{sufijo}?)|({consEnt}\.{sufijo}?)
 comentario ¡.*!
 espacio    [ \n\t]+
 error      [_:#$%&;{}?¿\\]+
 %%
 {palRes}      j = buscaElemento(op.palRes, yytext, SIMB_PALRES_NUM); insertarToken(&ptrInicialTokens, 0, j);
-{ident}       insertar(&ptrInicialIden, yytext, 1); contIden++;
+{ident}       insertar(&ptrInicialIden, yytext, 1);
 {opAsig}      j = buscaElemento(op.opAsig, yytext, SIMB_ASIG_NUM); insertarToken(&ptrInicialTokens, 2, j);
 {opRel}       j = buscaElemento(op.opRel, yytext, SIMB_REL_NUM); insertarToken(&ptrInicialTokens, 3, j);
 {opArit}      j = buscaElemento(op.opArit, yytext, SIMB_ARIT_NUM); insertarToken(&ptrInicialTokens, 4, j);
 {simbEsp}     j = buscaElemento(op.simbEsp, yytext, SIMB_ESP_NUM); insertarToken(&ptrInicialTokens, 5, j);
-{consCad}     insertar(&ptrInicialCad,yytext, 6); contCad++;
+{consCad}     insertar(&ptrInicialCad,yytext, 6);
 {consEnt}     insertar(&ptrInicialConstEnt,yytext, 7);
 {sufijo}
 {consReal}    insertar(&ptrInicialConstReal,yytext, 8);
@@ -115,7 +125,6 @@ error      [_:#$%&;{}?¿\\]+
 %%
 int main(int argc, char *argv[]){
   archSalida = fopen("Salida.txt", "w");
-  archErrores = fopen("Errores.txt", "w");
 
   yyin = fopen(argv[1], "r");
   yylex();
@@ -129,11 +138,11 @@ int main(int argc, char *argv[]){
   lista2Archivo(ptrInicialError, "Errores", archSalida);
 
   fclose(archSalida);
-  fclose(archErrores);
 
   return 0;
 }
 
+//Buscar un elemento en una tabla estatica
 int buscaElemento(const char **arr, char *symb, char tam){
   char i;
   for (i = 0; i < tam; i++){
@@ -143,11 +152,12 @@ int buscaElemento(const char **arr, char *symb, char tam){
   return -1;
 }
 
+//Regresa el simbolo de una tabla estatica dada una posicion
 char* regresaSimbolo(const char **arr, char posicion){
     return arr[posicion];
 }
 
-
+//Insertar cadena en la lista de tokens para cadenas que pertenecen a una tabla estatica
 void insertarToken( ptrNodoLista *ptrS, char clase, char posicion){
   ptrNodoLista ptrNuevo;
   ptrNodoLista ptrAnterior;
@@ -209,6 +219,7 @@ void imprimeListaToken( ptrNodoLista ptrActual ){
   }
 }
 
+//Inserta cadenas en la lista dinamica generada por el analizador
 void insertar( ptrNodoListaExpandible *ptrS, char *elemento, char clase){
   ptrNodoListaExpandible ptrNuevo;
   ptrNodoListaExpandible ptrAnterior;
@@ -265,6 +276,7 @@ void imprimeLista( ptrNodoListaExpandible ptrActual ){
   }
 }
 
+//Convierte las listas a archivos dandole el formato solicitado
 void lista2ArchivoToken(ptrNodoLista ptrInicial, FILE *fp){
   char *tmp;
   fprintf(fp, "Tokens de tablas estaticas:\n");
